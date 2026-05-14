@@ -2,27 +2,27 @@
 FROM node:24.15-alpine AS build
 WORKDIR /app
 
-# Cache dependencies separately from source
 COPY package.json package-lock.json ./
 RUN npm install --prefer-offline --no-audit --no-fund
 
-# Copy source and build
 COPY . .
 RUN npm run build
 
 # --- Production stage ---
-FROM nginx:alpine AS production
+FROM node:24.15-alpine AS production
+WORKDIR /app
+ENV NODE_ENV=production
 
-# Remove default config, copy custom nginx template and built assets
-RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
-COPY nginx.conf /etc/nginx/templates/default.conf.template
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY package.json package-lock.json ./
+RUN npm install --omit=dev --prefer-offline --no-audit --no-fund
 
-# Default port — Cloud Run overrides via PORT env var
+COPY --from=build /app/dist ./dist
+COPY server.js ./
+
 ENV PORT=8080
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -qO /dev/null http://localhost:${PORT}/ || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO /dev/null http://localhost:${PORT}/api/health || exit 1
 
 EXPOSE ${PORT}
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server.js"]

@@ -1,9 +1,497 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
+@font-face {
+  font-family: "Sligoil Micro";
+  src: url("/fonts/Sligoil-Micro.woff2") format("woff2"),
+    url("/fonts/Sligoil-Micro.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 html, body, #root {
   margin: 0;
   padding: 0;
+}
+
+/* ── Markdown theme variables ───────────────────────────────────── */
+
+[data-theme="light"] {
+  --md-text:     rgba(0,   0,   0,   0.80);
+  --md-heading:  rgba(0,   0,   0,   0.90);
+  --md-strong:   rgba(0,   0,   0,   0.92);
+  --md-muted:    rgba(0,   0,   0,   0.45);
+  --md-code-bg:  rgba(0,   0,   0,   0.05);
+  --md-pre-bg:   rgba(0,   0,   0,   0.04);
+  --md-border:   rgba(0,   0,   0,   0.10);
+  --md-link:     rgba(0,   80,  200, 0.80);
+}
+
+[data-theme="dark"] {
+  --md-text:     rgba(255, 255, 255, 0.80);
+  --md-heading:  rgba(255, 255, 255, 0.95);
+  --md-strong:   rgba(255, 255, 255, 0.95);
+  --md-muted:    rgba(255, 255, 255, 0.45);
+  --md-code-bg:  rgba(255, 255, 255, 0.07);
+  --md-pre-bg:   rgba(255, 255, 255, 0.05);
+  --md-border:   rgba(255, 255, 255, 0.10);
+  --md-link:     rgba(140, 180, 255, 0.90);
+}
+
+/* ── Markdown preview ───────────────────────────────────────────── */
+
+.markdown-body {
+  color: var(--md-text);
+  line-height: 1.75;
+  word-break: break-word;
+}
+
+.markdown-body > *:first-child { margin-top: 0; }
+.markdown-body > *:last-child  { margin-bottom: 0; }
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  color: var(--md-heading);
+  font-weight: 700;
+  line-height: 1.25;
+  margin-top: 1.6em;
+  margin-bottom: 0.5em;
+}
+.markdown-body h1 { font-size: 1.875rem; }
+.markdown-body h2 { font-size: 1.5rem; }
+.markdown-body h3 { font-size: 1.25rem; }
+.markdown-body h4 { font-size: 1.1rem; }
+.markdown-body h5,
+.markdown-body h6 { font-size: 1rem; }
+
+.markdown-body p   { margin: 0.75em 0; }
+.markdown-body em  { font-style: italic; }
+.markdown-body strong { font-weight: 700; color: var(--md-strong); }
+
+.markdown-body ul  { list-style: disc;    padding-left: 1.75em; margin: 0.75em 0; }
+.markdown-body ol  { list-style: decimal; padding-left: 1.75em; margin: 0.75em 0; }
+.markdown-body li  { margin: 0.3em 0; }
+.markdown-body li > ul,
+.markdown-body li > ol { margin: 0.2em 0; }
+
+.markdown-body blockquote {
+  border-left: 2px solid var(--md-border);
+  padding: 0.25em 0 0.25em 1em;
+  margin: 1em 0;
+  color: var(--md-muted);
+}
+
+.markdown-body code {
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+  font-size: 0.875em;
+  background: var(--md-code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 0.25rem;
+}
+
+.markdown-body pre {
+  background: var(--md-pre-bg);
+  border: 1px solid var(--md-border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.8125rem;
+  color: var(--md-text);
+}
+
+.markdown-body table {
   width: 100%;
-  min-height: 100dvh;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 0.9em;
+}
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid var(--md-border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+.markdown-body th {
+  font-weight: 600;
+  color: var(--md-heading);
+  background: var(--md-code-bg);
+}
+
+.markdown-body a {
+  color: var(--md-link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid var(--md-border);
+  margin: 1.5em 0;
+}
+
+.markdown-body img {
+  max-width: 100%;
+  border-radius: 0.5rem;
+}
+
+/* ── PDF viewer ─────────────────────────────────────────────────── */
+
+.pdf-viewer {
+  height: 100%;
+  overflow-y: auto;
+  background: #b8b8b8;
+  padding: 16px 12px 36px;
+}
+
+[data-theme="dark"] .pdf-viewer {
+  background: #2a2a2a;
+}
+
+/* A4 page — always white */
+.pdf-page {
+  background: #ffffff;
+  color: #111111;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.22);
+  padding: 28pt 32pt;
+  max-width: 595pt;
+  min-height: 842pt;
+  margin: 0 auto;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 9.5pt;
+  line-height: 1.5;
+}
+
+/* PDF metadata card */
+.pdf-meta-card {
+  border: 0.5pt solid #e0e0e0;
+  border-radius: 3pt;
+  background: #f7f7f7;
+  padding: 9pt 11pt;
+  margin-bottom: 14pt;
+}
+.pdf-meta-title {
+  font-size: 11pt;
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 2pt;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+.pdf-meta-desc {
+  font-size: 8.5pt;
+  color: #666;
+  margin-bottom: 5pt;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+.pdf-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4pt;
+}
+.pdf-meta-date {
+  font-size: 7.5pt;
+  font-family: ui-monospace, monospace;
+  color: #999;
+}
+.pdf-meta-tag {
+  display: inline-block;
+  font-size: 7pt;
+  font-family: ui-monospace, monospace;
+  padding: 1pt 5pt;
+  border-radius: 999pt;
+  background: rgba(0,0,0,.04);
+  border: 0.5pt solid rgba(0,0,0,.1);
+  color: #777;
+}
+
+.pdf-page h1 { font-size: 16pt; font-weight: 700; margin: 0 0 8pt; line-height: 1.15; }
+.pdf-page h2 { font-size: 12pt; font-weight: 700; margin: 13pt 0 4pt; border-bottom: 0.5pt solid #ddd; padding-bottom: 2pt; }
+.pdf-page h3 { font-size: 10.5pt; font-weight: 600; margin: 10pt 0 3pt; }
+.pdf-page h4,
+.pdf-page h5,
+.pdf-page h6 { font-size: 9.5pt; font-weight: 600; margin: 7pt 0 2pt; }
+
+.pdf-page p   { margin: 0 0 5pt; }
+.pdf-page em  { font-style: italic; }
+.pdf-page strong { font-weight: 700; }
+
+.pdf-page ul  { list-style: disc;    padding-left: 13pt; margin: 3pt 0 5pt; }
+.pdf-page ol  { list-style: decimal; padding-left: 13pt; margin: 3pt 0 5pt; }
+.pdf-page li  { margin: 1pt 0; }
+.pdf-page li > ul,
+.pdf-page li > ol { margin: 1pt 0; }
+
+.pdf-page blockquote {
+  border-left: 2pt solid #d0d0d0;
+  padding: 1pt 0 1pt 9pt;
+  margin: 5pt 0;
+  color: #666;
+  font-style: italic;
+}
+
+.pdf-page code {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 7.5pt;
+  background: #f3f3f3;
+  padding: 0.5pt 3pt;
+  border-radius: 2pt;
+}
+
+.pdf-page pre {
+  background: #f6f6f6;
+  border: 0.5pt solid #e0e0e0;
+  border-radius: 2pt;
+  padding: 7pt 9pt;
+  overflow-x: auto;
+  margin: 6pt 0;
+}
+.pdf-page pre code { background: none; padding: 0; font-size: 7pt; }
+
+.pdf-page table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 7pt 0;
+  font-size: 8pt;
+}
+.pdf-page th,
+.pdf-page td { border: 0.5pt solid #ccc; padding: 3pt 6pt; text-align: left; }
+.pdf-page th {
+  font-weight: 600;
+  background: #f3f3f3;
+  font-size: 7.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.pdf-page tr:nth-child(even) td { background: #fafafa; }
+
+.pdf-page a { color: #1d4ed8; text-decoration: underline; }
+
+.pdf-page hr {
+  border: none;
+  border-top: 0.5pt solid #e0e0e0;
+  margin: 12pt 0;
+}
+
+.pdf-page img { max-width: 100%; display: block; margin: 7pt auto; }
+
+/* Mermaid in PDF */
+.pdf-page .mermaid-block { margin: 8pt 0; display: flex; justify-content: center; }
+.pdf-page .mermaid-block svg { max-width: 100%; height: auto; }
+.pdf-mermaid-error { font-size: 7pt; color: #bbb; font-family: ui-monospace, monospace; }
+
+/* ── File miniature cards ───────────────────────────────────────── */
+
+@keyframes card-fly-in {
+  0%   { opacity: 0; transform: translateY(32px) rotate(var(--card-r, 0deg)) scale(0.78); }
+  65%  { transform: translateY(-4px) rotate(var(--card-r, 0deg)) scale(1.03); }
+  100% { opacity: 1; transform: translateY(0) rotate(var(--card-r, 0deg)) scale(1); }
+}
+
+.mini-card {
+  position: relative;
+  animation: card-fly-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transform: rotate(var(--card-r, 0deg));
+  transition: transform 0.2s ease, box-shadow 0.2s ease, z-index 0s;
+  z-index: 1;
+}
+.mini-card:hover {
+  transform: translateY(-6px) scale(1.04) !important;
+  z-index: 20;
+}
+
+.mini-card-inner {
+  width: 160px;
+  height: 190px;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  background: #e8e8e8;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.07);
+  transition: box-shadow 0.2s ease;
+  cursor: default;
+  user-select: none;
+}
+[data-theme="dark"] .mini-card-inner {
+  background: #2c2c2c;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.07);
+}
+.mini-card:hover .mini-card-inner {
+  box-shadow: 0 10px 28px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.09);
+}
+
+/* Preview fills the full card */
+.mini-card-preview {
+  width: 160px;
+  height: 190px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #f4f4f5;
+}
+[data-theme="dark"] .mini-card-preview { background: #222222; }
+
+.mini-card-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.mini-card-preview pre {
+  font-size: 6.5px;
+  font-family: ui-monospace, monospace;
+  line-height: 1.5;
+  color: #6b7280;
+  padding: 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow: hidden;
+  max-height: 190px;
+  width: 100%;
+  margin: 0;
+  align-self: flex-start;
+}
+
+
+.mini-card-type-badge {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #aaa;
+}
+
+/* Footer: hidden by default, slides up on hover */
+.mini-card-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 10px 10px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transform: translateY(100%);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.mini-card:hover .mini-card-footer { transform: translateY(0); }
+
+.mini-card-name {
+  font-size: 9.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+  margin: 0 0 2px;
+  line-height: 1.3;
+}
+.mini-card-meta {
+  font-size: 8px;
+  font-family: ui-monospace, monospace;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0;
+}
+
+.mini-card-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #111;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.15s;
+  cursor: pointer;
+  border: none;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mini-card:hover .mini-card-remove { opacity: 1; }
+
+/* ── Scan line animation ─────────────────────────────────────────── */
+
+@keyframes scan-down {
+  0%   { top: -3px; opacity: 0; }
+  5%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { top: calc(100% + 3px); opacity: 0; }
+}
+
+.scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(59, 130, 246, 0.3) 15%,
+    rgba(59, 130, 246, 0.85) 50%,
+    rgba(59, 130, 246, 0.3) 85%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 6px rgba(59, 130, 246, 0.5),
+    0 0 18px rgba(59, 130, 246, 0.25);
+  animation: scan-down 2.4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.scan-glow {
+  background: linear-gradient(
+    to bottom,
+    rgba(59, 130, 246, 0.03) 0%,
+    transparent 25%,
+    transparent 75%,
+    rgba(59, 130, 246, 0.03) 100%
+  );
+}
+
+/* Scan bar for non-image files */
+@keyframes scan-sweep {
+  0%   { transform: translateX(-150%); }
+  100% { transform: translateX(400%); }
+}
+
+.scan-bar {
+  height: 100%;
+  width: 40%;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.5);
+  animation: scan-sweep 1.6s ease-in-out infinite;
+}
+
+/* ── Typing cursor ────────────────────────────────────────────────── */
+
+@keyframes blink {
+  0%, 100% { opacity: 0.7; }
+  50%       { opacity: 0; }
+}
+
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 0.85em;
+  background: currentColor;
+  animation: blink 1s step-end infinite;
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  opacity: 0.5;
 }

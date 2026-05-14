@@ -4,12 +4,23 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently --kill-others-on-fail --names \"vite,api\" \"vite\" \"PORT=3001 node --env-file-if-exists=.env --watch server.js\"",
+    "dev:client": "vite",
+    "dev:server": "PORT=3001 node --env-file-if-exists=.env --watch server.js",
     "build": "vite build",
+    "start": "node server.js",
+    "generate:icons": "node scripts/generate-icons.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.40.0",
+    "express": "^5.0.1",
+    "mammoth": "^1.8.0",
+    "marked": "^15.0.0",
+    "mermaid": "^11.15.0",
+    "multer": "^1.4.5-lts.1",
+    "pdfjs-dist": "^5.7.284",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
@@ -19,6 +30,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.0.0",
     "daisyui": "^5.5.19",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",

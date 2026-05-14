@@ -1,7 +1,9 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
+    <!-- Apply saved theme before first paint to avoid flash -->
+    <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('dn-theme')||'light')}catch(e){}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
     <!-- Primary Meta -->
@@ -43,8 +45,10 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
 
-    <!-- Favicons -->
+    <!-- Favicons & app icons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
 
     <!-- Linked data files -->
     <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
@@ -105,6 +109,10 @@
     }
     </script>
 
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
     <!-- Prerender content for non-JS crawlers -->
     <noscript>
       <style>
@@ -116,9 +124,5 @@
       <p>A minimal, distraction-free note-taking application. JavaScript is required to run this app.</p>
       <p style="margin-top: 2rem; color: #666;">Created by <a href="https://chloelavrat.com" style="color: #888;">Chloé Lavrat</a></p>
     </noscript>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
