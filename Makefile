@@ -112,17 +112,20 @@ merge:
 	\
 	printf "$(CYAN)→ develop$(RESET)\n"; \
 	git checkout develop; \
+	git pull origin develop; \
 	git merge "$$branch" --no-ff -m "merge: $$branch → develop"; \
 	git push origin develop; \
 	printf "$(GREEN)  ✓ develop pushed$(RESET)\n\n"; \
 	\
 	printf "$(CYAN)→ main$(RESET)\n"; \
 	git checkout main; \
+	git pull origin main; \
 	git merge develop --no-ff -m "merge: develop → main"; \
 	git push origin main; \
 	printf "$(GREEN)  ✓ main pushed$(RESET)\n\n"; \
 	\
 	git checkout "$$branch"; \
+	git pull origin "$$branch" 2>/dev/null || true; \
 	printf "$(GREEN)✓ Done — $$branch → develop → main all merged and pushed.$(RESET)\n\n"
 
 # ── Secrets / .env ───────────────────────────────────────────────
