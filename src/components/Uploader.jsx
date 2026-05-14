@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { flushSync } from 'react-dom'
 import ThemeToggle from './ThemeToggle'
 
 const ACCEPT = [
@@ -17,7 +18,7 @@ function fmtSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function MiniCard({ file, index, onRemove }) {
+function MiniCard({ file, index, isFirst = false, onRemove }) {
   const [objectUrl, setObjectUrl]   = useState(null)
   const [textPreview, setTextPreview] = useState(null)
   const [pdfDone, setPdfDone]       = useState(false)
@@ -95,7 +96,7 @@ function MiniCard({ file, index, onRemove }) {
         </svg>
       </button>
 
-      <div className="mini-card-inner">
+      <div className="mini-card-inner" style={isFirst ? { viewTransitionName: 'doc-preview' } : undefined}>
         <div className="mini-card-preview">
           {isImage && objectUrl ? (
             <img src={objectUrl} alt={file.name} />
@@ -120,7 +121,7 @@ function MiniCard({ file, index, onRemove }) {
   )
 }
 
-export default function Uploader({ onFiles, error, theme, onToggleTheme }) {
+export default function Uploader({ onFiles, onGuard = (fn) => fn(), error, theme, onToggleTheme }) {
   const [dragging, setDragging] = useState(false)
   const [queued, setQueued] = useState([])
   const inputRef       = useRef(null)
@@ -137,10 +138,29 @@ export default function Uploader({ onFiles, error, theme, onToggleTheme }) {
 
   const remove = (index) => setQueued(prev => prev.filter((_, i) => i !== index))
   const clear  = () => { setQueued([]); if (inputRef.current) inputRef.current.value = '' }
-  const submit = () => { if (queued.length) onFiles(queued) }
+  const submit = () => {
+    if (!queued.length) return
+    if (typeof document?.startViewTransition === 'function') {
+      document.startViewTransition(() => {
+        flushSync(() => onFiles(queued)) // force React to flush DOM before snapshot
+      })
+    } else {
+      onFiles(queued)
+    }
+  }
 
   return (
-    <div className="fixed inset-0 bg-base-100 flex flex-col items-center justify-center px-6 select-none">
+    <div
+      className="fixed inset-0 bg-base-100 flex flex-col items-center justify-center px-6 select-none"
+      onDragEnter={(e) => { e.preventDefault(); setDragging(true) }}
+      onDragOver={(e) => e.preventDefault()}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false) }}
+      onDrop={(e) => {
+        e.preventDefault(); setDragging(false)
+        const files = Array.from(e.dataTransfer.files)
+        onGuard(() => stage(files))
+      }}
+    >
       <ThemeToggle theme={theme} onToggle={onToggleTheme} className="absolute top-4 right-4" />
 
       <h1
@@ -149,60 +169,62 @@ export default function Uploader({ onFiles, error, theme, onToggleTheme }) {
       >
         Digital Notes
       </h1>
-      <p className="text-base-content/40 text-sm mb-10 text-center">
-        Transform any document or image into Markdown — up to {MAX} files at once
+      <p className="text-base-content/35 text-sm mb-14 text-center">
+        Transform any document or image into Markdown
       </p>
 
       {queued.length === 0 ? (
-        <>
-          {/* Drop zone */}
-          <label
-            className="w-full max-w-md rounded-2xl p-10 flex flex-col items-center gap-5 cursor-pointer transition-all duration-200"
-            style={{
-              border: `2px dashed ${dragging
-                ? 'color-mix(in oklch, var(--color-base-content) 35%, transparent)'
-                : 'color-mix(in oklch, var(--color-base-content) 12%, transparent)'}`,
-              backgroundColor: dragging ? 'color-mix(in oklch, var(--color-base-content) 4%, transparent)' : 'transparent',
-              transform: dragging ? 'scale(1.01)' : 'scale(1)',
-            }}
-            onDragEnter={(e) => { e.preventDefault(); setDragging(true) }}
-            onDragOver={(e) => e.preventDefault()}
-            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false) }}
-            onDrop={(e) => { e.preventDefault(); setDragging(false); stage(e.dataTransfer.files) }}
-          >
-            <input ref={inputRef} type="file" accept={ACCEPT} multiple className="hidden" onChange={(e) => stage(e.target.files)} />
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-base-content/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        /* ── Empty state ────────────────────────────── */
+        <div
+          className="flex flex-col items-center gap-8 w-full max-w-xs"
+        >
+          <input ref={inputRef} type="file" accept={ACCEPT} multiple className="hidden" onChange={(e) => stage(e.target.files)} />
+          <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
+            onChange={(e) => { const f = e.target.files[0]; if (f) onFiles([f]) }} />
+
+          {/* Upload icon + hint — no border, opens freely on drop */}
+          <div className="flex flex-col items-center gap-4 transition-all duration-200"
+            style={{ opacity: dragging ? 0.5 : 1 }}>
+            <svg xmlns="http://www.w3.org/2000/svg"
+              className="w-10 h-10 text-base-content/20 transition-transform duration-200"
+              style={{ transform: dragging ? 'translateY(-4px)' : 'translateY(0)' }}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg>
-            <p className="text-sm text-base-content/45">
-              {dragging ? 'Release to select' : 'Drop files here or click to browse'}
+            <p className="text-sm text-base-content/35 text-center">
+              {dragging ? 'Release to add files' : 'Drop files anywhere'}
             </p>
+            {/* Format badges — same style as queue */}
             <div className="flex flex-wrap gap-1.5 justify-center">
               {['PDF', 'DOCX', 'PNG', 'JPEG', 'WEBP', 'TXT', 'CSV'].map((f) => (
-                <span key={f} className="font-mono text-[10px] px-1.5 py-0.5 rounded border border-base-content/10 text-base-content/25">{f}</span>
+                <span key={f} className="font-mono text-[10px] px-1.5 py-0.5 rounded border border-base-content/10 text-base-content/20">{f}</span>
               ))}
             </div>
-          </label>
-
-          <div className="flex items-center gap-3 mt-5 mb-3">
-            <span className="h-px w-10 bg-base-content/10" />
-            <span className="text-xs text-base-content/25">or</span>
-            <span className="h-px w-10 bg-base-content/10" />
           </div>
 
-          <button
-            className="btn btn-ghost btn-sm gap-2 text-base-content/40 hover:text-base-content/70"
-            onClick={() => cameraRef.current?.click()}
-          >
-            <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
-              onChange={(e) => { const f = e.target.files[0]; if (f) onFiles([f]) }} />
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Take a photo
-          </button>
-        </>
+          {/* Action row — same pattern as queue: [📷] [Browse] */}
+          <div className="flex items-center gap-2 w-full">
+            <button
+              className="lg:hidden btn btn-sm btn-ghost gap-2 flex-1 text-base-content/50 hover:text-base-content/75 border border-base-content/10 hover:border-base-content/20"
+              onClick={() => onGuard(() => cameraRef.current?.click())}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Photo
+            </button>
+            <button
+              className="btn btn-sm bg-neutral text-neutral-content hover:bg-neutral/85 border-0 gap-2 flex-1"
+              onClick={() => onGuard(() => inputRef.current?.click())}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+              </svg>
+              Browse files
+            </button>
+          </div>
+        </div>
       ) : (
         /* ── Card deck queue ─────────────────────────── */
         <div className="flex flex-col items-center gap-6 w-full max-w-3xl">
@@ -210,17 +232,16 @@ export default function Uploader({ onFiles, error, theme, onToggleTheme }) {
           {/* Cards — spread freely, no container */}
           <div className="flex flex-wrap gap-8 justify-center w-full py-4 px-6">
             {queued.map((file, i) => (
-              <MiniCard key={`${file.name}-${i}`} file={file} index={i} onRemove={() => remove(i)} />
+              <MiniCard key={`${file.name}-${i}`} file={file} index={i} isFirst={i === 0} onRemove={() => remove(i)} />
             ))}
           </div>
 
           {/* Actions — flow below cards */}
           <div className="flex items-center gap-2 w-full max-w-xs">
-            {/* Camera — always shown, goes straight to camera on mobile */}
+            {/* Camera — phone/tablet only */}
             <button
-              className="btn btn-ghost btn-sm btn-square text-base-content/45 hover:text-base-content/70"
-              onClick={() => { if (queueCameraRef.current) { queueCameraRef.current.value = ''; queueCameraRef.current.click() } }}
-              title="Take a photo"
+              className="lg:hidden btn btn-sm btn-ghost gap-2 flex-1 text-base-content/50 hover:text-base-content/75 border border-base-content/10 hover:border-base-content/20"
+              onClick={() => onGuard(() => { if (queueCameraRef.current) { queueCameraRef.current.value = ''; queueCameraRef.current.click() } })}
             >
               <input
                 ref={queueCameraRef}
@@ -234,11 +255,12 @@ export default function Uploader({ onFiles, error, theme, onToggleTheme }) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
+              Photo
             </button>
 
             {/* Add files */}
             {queued.length < MAX && (
-              <label className="btn btn-ghost btn-sm gap-1.5 text-base-content/45 hover:text-base-content/70 cursor-pointer flex-1">
+              <label className="btn btn-ghost btn-sm gap-1.5 text-base-content/50 hover:text-base-content/75 border border-base-content/10 hover:border-base-content/20 cursor-pointer flex-1">
                 <input type="file" accept={ACCEPT} multiple className="hidden" onChange={(e) => stage(e.target.files)} />
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -279,6 +301,18 @@ export default function Uploader({ onFiles, error, theme, onToggleTheme }) {
           {error}
         </div>
       )}
+
+      <p className="absolute bottom-5 text-xs text-base-content/25 select-none">
+        Made with love by{' '}
+        <a
+          href="https://chloelavrat.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-base-content/50 transition-colors underline-offset-2 hover:underline"
+        >
+          Chloé Lavrat
+        </a>
+      </p>
     </div>
   )
 }

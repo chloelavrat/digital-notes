@@ -289,6 +289,21 @@ html, body, #root {
 .pdf-page .mermaid-block svg { max-width: 100%; height: auto; }
 .pdf-mermaid-error { font-size: 7pt; color: #bbb; font-family: ui-monospace, monospace; }
 
+/* ── View transitions ────────────────────────────────────────────── */
+
+
+::view-transition-group(doc-preview) {
+  animation-duration: 800ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Rest of page: cross-fade */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 600ms;
+  animation-timing-function: ease;
+}
+
 /* ── File miniature cards ───────────────────────────────────────── */
 
 @keyframes card-fly-in {
@@ -344,8 +359,9 @@ html, body, #root {
 .mini-card-preview img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
+  padding: 10px;
 }
 .mini-card-preview pre {
   font-size: 6.5px;

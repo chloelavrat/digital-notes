@@ -43,10 +43,30 @@ Vite runs on `http://localhost:5173` and proxies `/api` to the Express server on
 
 ## Environment variables
 
-| Variable | Description |
-|---|---|
-| `ANTHROPIC_API_KEY` | Your Anthropic API key (required) |
-| `PORT` | Server port — set to `3001` for local dev, overridden by Cloud Run in production |
+| Variable | Required | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | ✅ | Your Anthropic API key |
+| `PORT` | — | Server port (`3001` for local dev, Cloud Run sets it automatically) |
+| `AUTH_ENABLED` | — | Set to `true` to enable the login gate (default: `false`) |
+| `AUTH_USERS` | — | Comma-separated `user:password` pairs — e.g. `alice:pass1,bob:pass2` |
+| `AUTH_SECRET` | — | Secret used to sign session cookies — **change this in production** |
+
+### Login protection
+
+The login gate is **off by default**. To enable it:
+
+```bash
+AUTH_ENABLED=true
+AUTH_USERS=alice:secret1,bob:secret2
+AUTH_SECRET=a-long-random-string-change-me
+```
+
+- Users see the home page freely; the login screen appears when they first try to upload
+- After signing in, a `httpOnly` cookie (7-day expiry) keeps them authenticated
+- Multiple users with different credentials are supported via `AUTH_USERS`
+- Legacy single-user format (`AUTH_USERNAME` / `AUTH_PASSWORD`) is still supported
+
+> **Production tip:** generate `AUTH_SECRET` with `openssl rand -hex 32` and store it as a Cloud Run secret env var.
 
 ## Supported file types
 
