@@ -3,6 +3,7 @@ import multer from 'multer'
 import cookieParser from 'cookie-parser'
 import Anthropic from '@anthropic-ai/sdk'
 import mammoth from 'mammoth'
+import heicConvert from 'heic-convert'
 import { createHmac } from 'node:crypto'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
@@ -162,9 +163,17 @@ Return ONLY valid JSON. 3-6 tags, lowercase, hyphenated if multi-word.\n\n${mark
 app.post('/api/process', requireAuth, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file provided' })
 
-  const { mimetype, buffer, originalname } = req.file
+  let { mimetype, buffer } = req.file
+  const { originalname } = req.file
 
   try {
+    // Convert HEIC/HEIF → JPEG (Claude doesn't support HEIC natively)
+    if (mimetype === 'image/heic' || mimetype === 'image/heif') {
+      const converted = await heicConvert({ buffer, format: 'JPEG', quality: 0.92 })
+      buffer = Buffer.from(converted)
+      mimetype = 'image/jpeg'
+    }
+
     let content
 
     if (mimetype.startsWith('image/')) {
