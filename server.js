@@ -227,7 +227,7 @@ app.post('/api/process', requireAuth, upload.single('file'), async (req, res) =>
 })
 
 if (process.env.NODE_ENV === 'production') {
-  app.get('*', (_, res) => res.sendFile(join(__dirname, 'dist', 'index.html')))
+  app.get('/{*path}', (_, res) => res.sendFile(join(__dirname, 'dist', 'index.html')))
 }
 
 const port = process.env.PORT || 8080
