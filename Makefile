@@ -91,8 +91,7 @@ commit:
 
 # ── Merge feature → develop → main ───────────────────────────────
 merge:
-	@set -e; \
-	branch=$$(git branch --show-current); \
+	@branch=$$(git branch --show-current); \
 	printf "\n$(BOLD)Merge flow:$(RESET) $(CYAN)$$branch$(RESET) → develop → main\n\n"; \
 	\
 	if [ "$$branch" = "develop" ] || [ "$$branch" = "main" ]; then \
@@ -100,7 +99,8 @@ merge:
 	fi; \
 	\
 	printf "$(DIM)Checking for uncommitted changes...$(RESET)\n"; \
-	if ! git diff --quiet || ! git diff --cached --quiet; then \
+	dirty=$$(git status --porcelain | grep -v "^??" | wc -l | tr -d ' '); \
+	if [ "$$dirty" -gt 0 ]; then \
 		printf "$(YELLOW)You have uncommitted changes. Commit or stash first.$(RESET)\n\n"; exit 1; \
 	fi; \
 	\
@@ -111,17 +111,17 @@ merge:
 	printf "\n"; \
 	\
 	printf "$(CYAN)→ develop$(RESET)\n"; \
-	git checkout develop; \
-	git pull origin develop; \
-	git merge "$$branch" --no-ff -m "merge: $$branch → develop"; \
-	git push origin develop; \
+	git checkout develop || exit 1; \
+	git pull origin develop || exit 1; \
+	git merge "$$branch" --no-ff -m "merge: $$branch → develop" || exit 1; \
+	git push origin develop || exit 1; \
 	printf "$(GREEN)  ✓ develop pushed$(RESET)\n\n"; \
 	\
 	printf "$(CYAN)→ main$(RESET)\n"; \
-	git checkout main; \
-	git pull origin main; \
-	git merge develop --no-ff -m "merge: develop → main"; \
-	git push origin main; \
+	git checkout main || exit 1; \
+	git pull origin main || exit 1; \
+	git merge develop --no-ff -m "merge: develop → main" || exit 1; \
+	git push origin main || exit 1; \
 	printf "$(GREEN)  ✓ main pushed$(RESET)\n\n"; \
 	\
 	git checkout "$$branch"; \
