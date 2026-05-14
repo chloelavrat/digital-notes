@@ -13,14 +13,16 @@ RESET  := \033[0m
 # ── Help ─────────────────────────────────────────────────────────
 help:
 	@printf "\n$(BOLD)$(CYAN)Digital Notes$(RESET) — make commands\n\n"
-	@printf "  $(GREEN)make dev$(RESET)       Start dev server (Vite + Express)\n"
-	@printf "  $(GREEN)make build$(RESET)     Production build\n"
-	@printf "  $(GREEN)make lint$(RESET)      Run ESLint\n"
-	@printf "  $(GREEN)make commit$(RESET)    Interactive commit + optional push\n"
-	@printf "  $(GREEN)make push$(RESET)      Push current branch to origin\n"
-	@printf "  $(GREEN)make merge$(RESET)     Merge feature → develop → main\n"
-	@printf "  $(GREEN)make secrets$(RESET)   View / edit .env (secrets masked)\n"
-	@printf "  $(GREEN)make docker$(RESET)    Build & run Docker image locally\n\n"
+	@printf "  $(GREEN)make dev$(RESET)          Start dev server (Vite + Express)\n"
+	@printf "  $(GREEN)make build$(RESET)        Production build\n"
+	@printf "  $(GREEN)make lint$(RESET)         Run ESLint\n"
+	@printf "  $(GREEN)make commit$(RESET)       Interactive commit + optional push\n"
+	@printf "  $(GREEN)make push$(RESET)         Push current branch to origin\n"
+	@printf "  $(GREEN)make merge$(RESET)        Merge feature → develop → main\n"
+	@printf "  $(GREEN)make secrets$(RESET)      View / edit .env (secrets masked)\n"
+	@printf "  $(GREEN)make gcp-switch$(RESET)   Switch GCP account / project\n"
+	@printf "  $(GREEN)make gcp-secrets$(RESET)  Push .env secrets to GCP Secret Manager\n"
+	@printf "  $(GREEN)make docker$(RESET)       Build & run Docker image locally\n\n"
 
 # ── Dev ──────────────────────────────────────────────────────────
 dev:
@@ -129,6 +131,87 @@ merge:
 	printf "$(GREEN)✓ Done — $$branch → develop → main all merged and pushed.$(RESET)\n\n"
 
 # ── Secrets / .env ───────────────────────────────────────────────
+# ── GCP Account / Project switch ─────────────────────────────────
+gcp-switch:
+	@command -v gcloud >/dev/null 2>&1 || { printf "$(RED)gcloud CLI not found.$(RESET)\n\n"; exit 1; }; \
+	printf "\n$(BOLD)$(CYAN)GCP — current context$(RESET)\n\n"; \
+	cur_acct=$$(gcloud config get-value account 2>/dev/null); \
+	cur_proj=$$(gcloud config get-value project 2>/dev/null); \
+	printf "  Account : $(CYAN)$$cur_acct$(RESET)\n"; \
+	printf "  Project : $(CYAN)$$cur_proj$(RESET)\n\n"; \
+	\
+	printf "$(DIM)Accounts:$(RESET)\n"; \
+	accounts=$$(gcloud auth list --format="value(account)" 2>/dev/null); \
+	i=1; for a in $$accounts; do printf "  $(DIM)%2d$(RESET)  $$a\n" $$i; i=$$((i+1)); done; \
+	printf "\n"; \
+	read -p "Select account number (Enter to keep current): " sel; \
+	if [ -n "$$sel" ]; then \
+		new_acct=$$(echo "$$accounts" | sed -n "$${sel}p"); \
+		if [ -z "$$new_acct" ]; then \
+			printf "$(RED)Invalid selection.$(RESET)\n\n"; exit 1; \
+		fi; \
+		gcloud config set account "$$new_acct" && \
+		printf "$(GREEN)✓ Account → $$new_acct$(RESET)\n\n"; \
+	fi; \
+	\
+	printf "$(DIM)Projects for $$(gcloud config get-value account 2>/dev/null):$(RESET)\n"; \
+	projects=$$(gcloud projects list --format="value(projectId)" 2>/dev/null); \
+	i=1; for p in $$projects; do printf "  $(DIM)%2d$(RESET)  $$p\n" $$i; i=$$((i+1)); done; \
+	printf "\n"; \
+	read -p "Select project number (Enter to keep current): " sel; \
+	if [ -n "$$sel" ]; then \
+		new_proj=$$(echo "$$projects" | sed -n "$${sel}p"); \
+		if [ -z "$$new_proj" ]; then \
+			printf "$(RED)Invalid selection.$(RESET)\n\n"; exit 1; \
+		fi; \
+		gcloud config set project "$$new_proj" && \
+		printf "$(GREEN)✓ Project → $$new_proj$(RESET)\n"; \
+	fi; \
+	\
+	printf "\n$(BOLD)Active context:$(RESET)\n"; \
+	printf "  Account : $(CYAN)$$(gcloud config get-value account 2>/dev/null)$(RESET)\n"; \
+	printf "  Project : $(CYAN)$$(gcloud config get-value project 2>/dev/null)$(RESET)\n\n"
+
+# ── GCP Secret Manager ───────────────────────────────────────────
+# Reads sensitive keys from .env and creates/updates them in Secret Manager.
+# Run once before first deploy, then again whenever you change a secret value.
+gcp-secrets:
+	@if [ ! -f .env ]; then \
+		printf "$(RED).env not found. Copy .env.example → .env and fill in values first.$(RESET)\n\n"; exit 1; \
+	fi; \
+	command -v gcloud >/dev/null 2>&1 || { printf "$(RED)gcloud CLI not found. Install it first.$(RESET)\n\n"; exit 1; }; \
+	project=$$(gcloud config get-value project 2>/dev/null); \
+	printf "\n$(BOLD)$(CYAN)GCP Secret Manager$(RESET) — project: $(CYAN)$$project$(RESET)\n\n"; \
+	while IFS='=' read -r key val; do \
+		[ -z "$$key" ] && continue; \
+		echo "$$key" | grep -q "^#" && continue; \
+		[ -z "$$val" ] && continue; \
+		if echo "$$key" | grep -qiE "secret|password|key|token"; then \
+			printf "  $(YELLOW)%-22s$(RESET) → Secret Manager... " "$$key"; \
+			if gcloud secrets describe "$$key" --project="$$project" >/dev/null 2>&1; then \
+				echo -n "$$val" | gcloud secrets versions add "$$key" --data-file=- --project="$$project" >/dev/null 2>&1 && \
+				printf "$(GREEN)updated$(RESET)\n" || printf "$(RED)failed$(RESET)\n"; \
+			else \
+				echo -n "$$val" | gcloud secrets create "$$key" --data-file=- --project="$$project" >/dev/null 2>&1 && \
+				printf "$(GREEN)created$(RESET)\n" || printf "$(RED)failed$(RESET)\n"; \
+			fi; \
+		fi; \
+	done < .env; \
+	printf "\n$(DIM)Granting Cloud Run service account access to secrets...$(RESET)\n"; \
+	project_num=$$(gcloud projects describe "$$project" --format='value(projectNumber)' 2>/dev/null); \
+	sa="$$project_num-compute@developer.gserviceaccount.com"; \
+	for secret in ANTHROPIC_API_KEY AUTH_SECRET AUTH_USERS; do \
+		gcloud secrets describe "$$secret" --project="$$project" >/dev/null 2>&1 || continue; \
+		gcloud secrets add-iam-policy-binding "$$secret" \
+			--member="serviceAccount:$$sa" \
+			--role="roles/secretmanager.secretAccessor" \
+			--project="$$project" >/dev/null 2>&1 && \
+		printf "  $(GREEN)✓$(RESET) $$sa → $$secret\n" || \
+		printf "  $(YELLOW)⚠$(RESET) Could not bind $$secret (may already exist)\n"; \
+	done; \
+	printf "\n$(GREEN)✓ Done. Run 'make merge' to trigger a deploy.$(RESET)\n\n"
+
+# ── Local .env ───────────────────────────────────────────────────
 secrets:
 	@if [ ! -f .env ]; then \
 		printf "$(YELLOW).env not found — creating from .env.example$(RESET)\n"; \
