@@ -2,6 +2,8 @@ substitutions:
   _REGION: europe-west1       # override in trigger settings if needed
   _SERVICE: digital-notes
   _IMAGE: gcr.io/$PROJECT_ID/digital-notes
+  _AUTH_ENABLED: 'false'
+  _AUTH_USERNAME: admin
 
 steps:
   # ── 1. Build Docker image ────────────────────────────────────
@@ -41,10 +43,8 @@ steps:
       - --region=$_REGION
       - --platform=managed
       - --allow-unauthenticated
-      - --set-env-vars=NODE_ENV=production
-      - --set-secrets=ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,AUTH_SECRET=AUTH_SECRET:latest,AUTH_USERS=AUTH_USERS:latest
-      - --update-env-vars=AUTH_ENABLED=$_AUTH_ENABLED
-    # Override _AUTH_ENABLED in your trigger substitution variables
+      - --set-env-vars=NODE_ENV=production,AUTH_ENABLED=$_AUTH_ENABLED,AUTH_USERNAME=$_AUTH_USERNAME
+      - --set-secrets=ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,AUTH_SECRET=AUTH_SECRET:latest,AUTH_PASSWORD=AUTH_PASSWORD:latest
 
 images:
   - $_IMAGE:$COMMIT_SHA
