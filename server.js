@@ -1,12 +1,17 @@
 import express from 'express'
 import multer from 'multer'
+import cookieParser from 'cookie-parser'
 import Anthropic from '@anthropic-ai/sdk'
 import mammoth from 'mammoth'
+import { createHmac } from 'node:crypto'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const app = express()
+
+app.use(cookieParser())
+app.use(express.json())
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -14,6 +19,77 @@ const upload = multer({
 })
 
 const anthropic = new Anthropic()
+
+// ── Auth ─────────────────────────────────────────────────────────
+
+const AUTH_ENABLED = process.env.AUTH_ENABLED === 'true'
+const AUTH_SECRET  = process.env.AUTH_SECRET || 'change-me-in-production'
+
+// Build user list from AUTH_USERS=alice:pass1,bob:pass2  or legacy AUTH_USERNAME/AUTH_PASSWORD
+const AUTH_USERS = (() => {
+  const users = []
+  const multi = process.env.AUTH_USERS || ''
+  if (multi) {
+    multi.split(',').forEach(entry => {
+      const sep = entry.indexOf(':')
+      if (sep !== -1) users.push({ username: entry.slice(0, sep).trim(), password: entry.slice(sep + 1).trim() })
+    })
+  }
+  if (process.env.AUTH_USERNAME && process.env.AUTH_PASSWORD) {
+    if (!users.find(u => u.username === process.env.AUTH_USERNAME)) {
+      users.push({ username: process.env.AUTH_USERNAME, password: process.env.AUTH_PASSWORD })
+    }
+  }
+  return users
+})()
+
+const sign = (v) => createHmac('sha256', AUTH_SECRET).update(v).digest('hex')
+
+const makeToken = (username) =>
+  Buffer.from(`${username}:${sign(username)}`).toString('base64url')
+
+const verifyToken = (token) => {
+  if (!token) return false
+  try {
+    const raw  = Buffer.from(token, 'base64url').toString()
+    const sep  = raw.lastIndexOf(':')
+    const user = raw.slice(0, sep)
+    const sig  = raw.slice(sep + 1)
+    return sig === sign(user) ? user : false
+  } catch { return false }
+}
+
+const requireAuth = (req, res, next) => {
+  if (!AUTH_ENABLED) return next()
+  if (!verifyToken(req.cookies?.dn_auth)) return res.status(401).json({ error: 'Unauthorized' })
+  next()
+}
+
+app.get('/api/auth/check', (req, res) => {
+  if (!AUTH_ENABLED) return res.json({ required: false, authenticated: true })
+  res.json({ required: true, authenticated: !!verifyToken(req.cookies?.dn_auth) })
+})
+
+app.post('/api/auth/login', (req, res) => {
+  if (!AUTH_ENABLED) return res.json({ ok: true })
+  const { username, password } = req.body || {}
+  const match = AUTH_USERS.find(u => u.username === username && u.password === password)
+  if (match) {
+    res.cookie('dn_auth', makeToken(username), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    })
+    return res.json({ ok: true })
+  }
+  res.status(401).json({ error: 'Invalid username or password' })
+})
+
+app.post('/api/auth/logout', (req, res) => {
+  res.clearCookie('dn_auth')
+  res.json({ ok: true })
+})
 
 app.get('/api/health', (_, res) => res.json({ ok: true }))
 
@@ -83,7 +159,7 @@ Return ONLY valid JSON. 3-6 tags, lowercase, hyphenated if multi-word.\n\n${mark
   }
 }
 
-app.post('/api/process', upload.single('file'), async (req, res) => {
+app.post('/api/process', requireAuth, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file provided' })
 
   const { mimetype, buffer, originalname } = req.file

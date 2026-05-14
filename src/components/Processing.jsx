@@ -23,8 +23,9 @@ export default function Processing({ results, activeId, onSelectFile, theme, onT
       {/* Split pane */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
 
-        {/* Left — file preview + scan */}
-        <div className="h-56 md:h-auto md:w-1/2 shrink-0 bg-base-200/50 border-b border-base-content/8 md:border-b-0 md:border-r md:border-base-content/8">
+        {/* Left — file preview + scan (view-transition target for card zoom) */}
+        <div className="h-56 md:h-auto md:w-1/2 shrink-0 bg-base-200/50 border-b border-base-content/8 md:border-b-0 md:border-r md:border-base-content/8"
+          style={{ viewTransitionName: 'doc-preview' }}>
           <FilePreview file={active?.file} scanning={isScanning} />
         </div>
 
