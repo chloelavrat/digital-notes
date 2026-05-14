@@ -15,6 +15,34 @@ html, body, #root {
   padding: 0;
 }
 
+/* ── Mobile / app feel ───────────────────────────────────────────── */
+
+/* Kill blue flash on tap */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* No double-tap zoom on interactive elements, but keep scroll working */
+button, a, label, [role="button"], [role="tab"] { touch-action: manipulation; }
+
+/* No rubber-band bounce at the root */
+html { overscroll-behavior: none; }
+
+/* Momentum scrolling inside containers */
+.overflow-auto, .overflow-y-auto { -webkit-overflow-scrolling: touch; }
+
+/* Safe-area helpers (notch / home indicator) */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+  min-height: calc(3.5rem + env(safe-area-inset-top));
+}
+.safe-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+/* 16 px minimum on inputs — prevents iOS auto-zoom on focus */
+input:not([type="file"]), textarea, select {
+  font-size: max(16px, 1em) !important;
+}
+
 /* ── Markdown theme variables ───────────────────────────────────── */
 
 [data-theme="light"] {

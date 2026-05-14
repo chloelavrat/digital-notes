@@ -35,7 +35,8 @@ export default function FilePreview({ file, scanning = false }) {
   const [objectURL, setObjectURL] = useState(null)
   const [textContent, setTextContent] = useState(null)
 
-  const isImage = file?.type?.startsWith('image/')
+  const isHEIC  = file?.type === 'image/heic' || file?.type === 'image/heif'
+  const isImage = file?.type?.startsWith('image/') && !isHEIC
   const isPDF   = file?.type === 'application/pdf'
   const isText  = file?.type?.startsWith('text/')
 
