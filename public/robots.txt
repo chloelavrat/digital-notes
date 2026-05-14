@@ -1,0 +1,36 @@
+# Digital Notes — Robots & AI Crawler Directives
+# https://digital-notes.chloelavrat.com
+
+User-agent: *
+Allow: /
+Disallow: /assets/
+
+# AI/LLM Crawlers — welcome to index our content
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+Sitemap: https://digital-notes.chloelavrat.com/sitemap.xml

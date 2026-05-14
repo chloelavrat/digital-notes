@@ -1,0 +1,12 @@
+/* TEAM */
+Designer & Developer: Chloé Lavrat
+Site: https://chloelavrat.com
+GitHub: https://github.com/chloelavrat
+Location: France
+
+/* SITE */
+Last update: 2026-05-14
+Language: English
+Standards: HTML5, CSS3, ES2022
+Stack: React, Vite, Tailwind CSS, DaisyUI
+Hosting: Google Cloud Run (Docker + nginx)

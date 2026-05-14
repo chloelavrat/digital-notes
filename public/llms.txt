@@ -1,0 +1,14 @@
+# Digital Notes
+> A minimal, distraction-free note-taking application.
+
+## Technical stack
+React, Vite, Tailwind CSS, DaisyUI, deployed via Docker + nginx on Google Cloud Run.
+
+## Creator
+Chloé Lavrat — designer and developer.
+Website: https://chloelavrat.com
+GitHub: https://github.com/chloelavrat/digital-notes
+
+## Links
+- Source code: https://github.com/chloelavrat/digital-notes
+- Live app: https://digital-notes.chloelavrat.com

@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(npx vite *)",
+      "Bash(docker build *)",
+      "Bash(docker run *)",
+      "Bash(curl -sI http://localhost:8080)",
+      "Bash(curl -sI http://localhost:8080/assets/)",
+      "Bash(docker stop *)",
+      "Bash(git remote *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)",
+      "Bash(git tag *)"
+    ]
+  }
+}

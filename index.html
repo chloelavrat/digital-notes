@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+    <!-- Primary Meta -->
+    <title>Digital Notes</title>
+    <meta name="description" content="Digital Notes — a minimal, distraction-free note-taking application." />
+    <meta name="keywords" content="digital notes, note taking, minimal, writing, productivity" />
+    <meta name="author" content="Chloé Lavrat" />
+    <meta name="creator" content="Chloé Lavrat" />
+    <meta name="publisher" content="Chloé Lavrat" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://digital-notes.chloelavrat.com/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Digital Notes" />
+    <meta property="og:title" content="Digital Notes" />
+    <meta property="og:description" content="A minimal, distraction-free note-taking application." />
+    <meta property="og:url" content="https://digital-notes.chloelavrat.com/" />
+    <meta property="og:image" content="https://digital-notes.chloelavrat.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:alt" content="Digital Notes application interface" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Digital Notes" />
+    <meta name="twitter:description" content="A minimal, distraction-free note-taking application." />
+    <meta name="twitter:image" content="https://digital-notes.chloelavrat.com/og-image.png" />
+    <meta name="twitter:image:alt" content="Digital Notes interface" />
+    <meta name="twitter:creator" content="@chloelavrat" />
+
+    <!-- Mobile & PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Digital Notes" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Linked data files -->
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+    <link rel="author" type="text/plain" href="/humans.txt" />
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://chloelavrat.com/#organization",
+          "name": "Chloé Lavrat",
+          "url": "https://chloelavrat.com",
+          "logo": "https://chloelavrat.com/favicon.svg",
+          "sameAs": [
+            "https://github.com/chloelavrat"
+          ]
+        },
+        {
+          "@type": "Person",
+          "@id": "https://chloelavrat.com/#person",
+          "name": "Chloé Lavrat",
+          "url": "https://chloelavrat.com",
+          "jobTitle": "Designer & Developer",
+          "sameAs": [
+            "https://github.com/chloelavrat"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://digital-notes.chloelavrat.com/#website",
+          "name": "Digital Notes",
+          "url": "https://digital-notes.chloelavrat.com",
+          "description": "A minimal, distraction-free note-taking application.",
+          "publisher": { "@id": "https://chloelavrat.com/#organization" },
+          "creator": { "@id": "https://chloelavrat.com/#person" },
+          "inLanguage": "en"
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://digital-notes.chloelavrat.com/#application",
+          "name": "Digital Notes",
+          "url": "https://digital-notes.chloelavrat.com/",
+          "applicationCategory": "ProductivityApplication",
+          "operatingSystem": "Any (Web Browser)",
+          "browserRequirements": "Requires JavaScript, modern browser",
+          "description": "A browser-based note-taking application.",
+          "creator": { "@id": "https://chloelavrat.com/#person" },
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- Prerender content for non-JS crawlers -->
+    <noscript>
+      <style>
+        body { background: #000; color: #fff; font-family: system-ui, sans-serif; padding: 2rem; max-width: 800px; margin: 0 auto; }
+        h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+        p { line-height: 1.6; color: #ccc; }
+      </style>
+      <h1>Digital Notes</h1>
+      <p>A minimal, distraction-free note-taking application. JavaScript is required to run this app.</p>
+      <p style="margin-top: 2rem; color: #666;">Created by <a href="https://chloelavrat.com" style="color: #888;">Chloé Lavrat</a></p>
+    </noscript>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
