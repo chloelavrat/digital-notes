@@ -2,8 +2,8 @@
 <html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
-    <!-- Apply saved theme before first paint to avoid flash -->
-    <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('dn-theme')||'light')}catch(e){}</script>
+    <!-- Apply theme before first paint: cookie → system preference → light -->
+    <script>try{var m=document.cookie.match(/(?:^|; )dn-theme=([^;]*)/);var t=m?decodeURIComponent(m[1]):(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
     <!-- Primary Meta -->
