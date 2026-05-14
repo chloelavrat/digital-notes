@@ -28,7 +28,8 @@ export default function LoginModal({ onSuccess, theme, onToggleTheme }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-base-100 flex flex-col items-center justify-center px-6 select-none z-50">
+    <div className="fixed inset-0 bg-base-100 flex flex-col items-center justify-center px-6 select-none z-50"
+      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <ThemeToggle theme={theme} onToggle={onToggleTheme} className="absolute top-4 right-4" />
 
       <h1
@@ -47,7 +48,7 @@ export default function LoginModal({ onSuccess, theme, onToggleTheme }) {
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          className="input input-sm w-full border border-base-content/12 bg-base-200/40 focus:border-base-content/30 focus:outline-none"
+          className="input w-full border border-base-content/12 bg-base-200/40 focus:border-base-content/30 focus:outline-none text-base"
           autoComplete="username"
           autoFocus
           required
@@ -57,7 +58,7 @@ export default function LoginModal({ onSuccess, theme, onToggleTheme }) {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="input input-sm w-full border border-base-content/12 bg-base-200/40 focus:border-base-content/30 focus:outline-none"
+          className="input w-full border border-base-content/12 bg-base-200/40 focus:border-base-content/30 focus:outline-none text-base"
           autoComplete="current-password"
           required
         />

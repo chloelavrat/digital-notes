@@ -4,6 +4,13 @@ import ThemeToggle from './ThemeToggle'
 
 const ACCEPT = [
   'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+  'image/heic', 'image/heif',
+  'application/pdf',
+  'text/plain', 'text/csv', 'text/html',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+].join(',')
+
+const DOC_ACCEPT = [
   'application/pdf',
   'text/plain', 'text/csv', 'text/html',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -24,7 +31,8 @@ function MiniCard({ file, index, isFirst = false, onRemove }) {
   const [pdfDone, setPdfDone]       = useState(false)
   const canvasRef = useRef(null)
 
-  const isImage = file.type.startsWith('image/')
+  const isHEIC  = file.type === 'image/heic' || file.type === 'image/heif'
+  const isImage = file.type.startsWith('image/') && !isHEIC
   const isPDF   = file.type === 'application/pdf'
   const isText  = file.type.startsWith('text/')
   const ext = (file.name.split('.').pop() ?? '').toUpperCase().slice(0, 5)
@@ -152,6 +160,7 @@ export default function Uploader({ onFiles, onGuard = (fn) => fn(), error, theme
   return (
     <div
       className="fixed inset-0 bg-base-100 flex flex-col items-center justify-center px-6 select-none"
+      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
       onDragEnter={(e) => { e.preventDefault(); setDragging(true) }}
       onDragOver={(e) => e.preventDefault()}
       onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false) }}
@@ -175,47 +184,81 @@ export default function Uploader({ onFiles, onGuard = (fn) => fn(), error, theme
 
       {queued.length === 0 ? (
         /* ── Empty state ────────────────────────────── */
-        <div
-          className="flex flex-col items-center gap-8 w-full max-w-xs"
-        >
-          <input ref={inputRef} type="file" accept={ACCEPT} multiple className="hidden" onChange={(e) => stage(e.target.files)} />
-          <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
-            onChange={(e) => { const f = e.target.files[0]; if (f) onFiles([f]) }} />
+        <div className="flex flex-col items-center gap-6 w-full max-w-xs">
+          <input ref={inputRef}   type="file" accept={ACCEPT}      multiple className="hidden" onChange={(e) => stage(e.target.files)} />
+          <input ref={cameraRef}  type="file" accept="image/*"     capture="environment" className="hidden" onChange={(e) => { const f = e.target.files[0]; if (f) onFiles([f]) }} />
 
-          {/* Upload icon + hint — no border, opens freely on drop */}
-          <div className="flex flex-col items-center gap-4 transition-all duration-200"
-            style={{ opacity: dragging ? 0.5 : 1 }}>
-            <svg xmlns="http://www.w3.org/2000/svg"
-              className="w-10 h-10 text-base-content/20 transition-transform duration-200"
-              style={{ transform: dragging ? 'translateY(-4px)' : 'translateY(0)' }}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-            </svg>
-            <p className="text-sm text-base-content/35 text-center">
-              {dragging ? 'Release to add files' : 'Drop files anywhere'}
-            </p>
-            {/* Format badges — same style as queue */}
-            <div className="flex flex-wrap gap-1.5 justify-center">
-              {['PDF', 'DOCX', 'PNG', 'JPEG', 'WEBP', 'TXT', 'CSV'].map((f) => (
-                <span key={f} className="font-mono text-[10px] px-1.5 py-0.5 rounded border border-base-content/10 text-base-content/20">{f}</span>
-              ))}
-            </div>
+          {/* ── Mobile: 3 explicit large buttons ── */}
+          <div className="md:hidden flex flex-col gap-3 w-full">
+            {[
+              {
+                label: 'Take a photo',
+                sub: 'Use your camera',
+                icon: <><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></>,
+                action: () => onGuard(() => cameraRef.current?.click()),
+                asLabel: false,
+                accept: null,
+              },
+              {
+                label: 'Add photos',
+                sub: 'From your library',
+                icon: <><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></>,
+                action: null,
+                asLabel: true,
+                accept: 'image/*',
+              },
+              {
+                label: 'Add a document',
+                sub: 'PDF, DOCX, TXT…',
+                icon: <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />,
+                action: null,
+                asLabel: true,
+                accept: DOC_ACCEPT,
+              },
+            ].map(({ label, sub, icon, action, asLabel, accept }) => {
+              const inner = (
+                <>
+                  {asLabel && <input type="file" accept={accept} multiple className="hidden" onChange={(e) => onGuard(() => stage(e.target.files))} />}
+                  <span className="flex items-center justify-center w-11 h-11 rounded-2xl bg-base-content/6 shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-base-content/55" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>{icon}</svg>
+                  </span>
+                  <span className="flex-1 text-left">
+                    <span className="block text-base font-medium text-base-content/80 leading-tight">{label}</span>
+                    <span className="block text-xs text-base-content/35 mt-0.5">{sub}</span>
+                  </span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-base-content/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </>
+              )
+              const cls = "flex items-center gap-4 w-full px-4 py-3.5 rounded-2xl bg-base-200/50 active:bg-base-200 transition-colors"
+              return asLabel
+                ? <label key={label} className={cls + ' cursor-pointer'}>{inner}</label>
+                : <button key={label} className={cls} onClick={action}>{inner}</button>
+            })}
           </div>
 
-          {/* Action row — same pattern as queue: [📷] [Browse] */}
-          <div className="flex items-center gap-2 w-full">
-            <button
-              className="lg:hidden btn btn-sm btn-ghost gap-2 flex-1 text-base-content/50 hover:text-base-content/75 border border-base-content/10 hover:border-base-content/20"
-              onClick={() => onGuard(() => cameraRef.current?.click())}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          {/* ── Desktop: drop zone + browse ── */}
+          <div className="hidden md:flex flex-col items-center gap-5 w-full">
+            <div className="flex flex-col items-center gap-4 transition-all duration-200"
+              style={{ opacity: dragging ? 0.5 : 1 }}>
+              <svg xmlns="http://www.w3.org/2000/svg"
+                className="w-10 h-10 text-base-content/20 transition-transform duration-200"
+                style={{ transform: dragging ? 'translateY(-4px)' : 'translateY(0)' }}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
               </svg>
-              Photo
-            </button>
+              <p className="text-sm text-base-content/35 text-center">
+                {dragging ? 'Release to add files' : 'Drop files anywhere'}
+              </p>
+              <div className="flex flex-wrap gap-1.5 justify-center">
+                {['PDF', 'DOCX', 'PNG', 'JPEG', 'WEBP', 'HEIC', 'TXT', 'CSV'].map((f) => (
+                  <span key={f} className="font-mono text-[10px] px-1.5 py-0.5 rounded border border-base-content/10 text-base-content/20">{f}</span>
+                ))}
+              </div>
+            </div>
             <button
-              className="btn btn-sm bg-neutral text-neutral-content hover:bg-neutral/85 border-0 gap-2 flex-1"
+              className="btn btn-sm bg-neutral text-neutral-content hover:bg-neutral/85 border-0 gap-2"
               onClick={() => onGuard(() => inputRef.current?.click())}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
