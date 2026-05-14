@@ -1,0 +1,54 @@
+substitutions:
+  _REGION: europe-west1       # override in trigger settings if needed
+  _SERVICE: digital-notes
+  _IMAGE: gcr.io/$PROJECT_ID/digital-notes
+
+steps:
+  # ── 1. Build Docker image ────────────────────────────────────
+  - name: gcr.io/cloud-builders/docker
+    id: build
+    args:
+      - build
+      - -t
+      - $_IMAGE:$COMMIT_SHA
+      - -t
+      - $_IMAGE:latest
+      - .
+
+  # ── 2. Push to Container Registry ───────────────────────────
+  - name: gcr.io/cloud-builders/docker
+    id: push
+    waitFor: [build]
+    args:
+      - push
+      - --all-tags
+      - $_IMAGE
+
+  # ── 3. Deploy to Cloud Run ───────────────────────────────────
+  #
+  # Secrets are read from GCP Secret Manager at runtime.
+  # Run `make gcp-secrets` once to create them from your .env.
+  #
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: deploy
+    waitFor: [push]
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - $_SERVICE
+      - --image=$_IMAGE:$COMMIT_SHA
+      - --region=$_REGION
+      - --platform=managed
+      - --allow-unauthenticated
+      - --set-env-vars=NODE_ENV=production
+      - --set-secrets=ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,AUTH_SECRET=AUTH_SECRET:latest,AUTH_USERS=AUTH_USERS:latest
+      - --update-env-vars=AUTH_ENABLED=$_AUTH_ENABLED
+    # Override _AUTH_ENABLED in your trigger substitution variables
+
+images:
+  - $_IMAGE:$COMMIT_SHA
+  - $_IMAGE:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
