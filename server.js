@@ -4,9 +4,13 @@ import cookieParser from 'cookie-parser'
 import Anthropic from '@anthropic-ai/sdk'
 import mammoth from 'mammoth'
 import heicConvert from 'heic-convert'
-import { createHmac } from 'node:crypto'
+import { OAuth2Client } from 'google-auth-library'
+import { createHmac, randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { query as dbQuery } from './lib/db.js'
+import { uploadBuffer, BUCKET } from './lib/storage.js'
+import { creditsMiddleware } from './lib/credits.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -89,8 +93,106 @@ app.post('/api/auth/login', (req, res) => {
 
 app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('dn_auth')
+  res.clearCookie('dn_session')
   res.json({ ok: true })
 })
+
+// ── Google OAuth ──────────────────────────────────────────────────
+
+const SESSION_SECRET = process.env.SESSION_SECRET || AUTH_SECRET
+const googleClient   = process.env.GOOGLE_CLIENT_ID
+  ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
+  : null
+
+const signSession   = (userId) => createHmac('sha256', SESSION_SECRET).update(userId).digest('hex')
+const makeSession   = (userId) => Buffer.from(`${userId}:${signSession(userId)}`).toString('base64url')
+const verifySession = (token)  => {
+  if (!token) return null
+  try {
+    const raw = Buffer.from(token, 'base64url').toString()
+    const sep = raw.lastIndexOf(':')
+    const id  = raw.slice(0, sep)
+    const sig = raw.slice(sep + 1)
+    return sig === signSession(id) ? id : null
+  } catch { return null }
+}
+
+// POST /api/auth/google  — verify Google ID token, upsert user, set session cookie
+app.post('/api/auth/google', async (req, res) => {
+  if (!googleClient) return res.status(503).json({ error: 'Google OAuth not configured (GOOGLE_CLIENT_ID missing)' })
+  const { credential } = req.body || {}
+  if (!credential) return res.status(400).json({ error: 'Missing credential' })
+
+  try {
+    const ticket  = await googleClient.verifyIdToken({ idToken: credential, audience: process.env.GOOGLE_CLIENT_ID })
+    const payload = ticket.getPayload()
+    const { sub: googleId, email, name, picture: avatar_url } = payload
+
+    // Upsert user
+    const { rows } = await dbQuery(`
+      INSERT INTO users (google_id, email, name, avatar_url)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (google_id) DO UPDATE
+        SET email      = EXCLUDED.email,
+            name       = EXCLUDED.name,
+            avatar_url = EXCLUDED.avatar_url,
+            updated_at = NOW()
+      RETURNING id, email, name, avatar_url, access, preferences, monthly_limit, credit_policy
+    `, [googleId, email, name, avatar_url])
+
+    const user = rows[0]
+
+    // Check app access
+    if (!user.access?.digital_notes && !user.access?.admin) {
+      return res.status(403).json({ error: 'Access to Digital Notes not granted. Contact the administrator.' })
+    }
+
+    res.cookie('dn_session', makeSession(user.id), {
+      httpOnly: true,
+      secure:   process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge:   30 * 24 * 60 * 60 * 1000, // 30 days
+    })
+    res.json({ ok: true, user: { id: user.id, email: user.email, name: user.name, avatar_url: user.avatar_url, access: user.access, preferences: user.preferences } })
+  } catch (err) {
+    console.error('Google auth error:', err.message)
+    res.status(401).json({ error: 'Invalid Google credential' })
+  }
+})
+
+// GET /api/auth/me — return current session user
+app.get('/api/auth/me', async (req, res) => {
+  const userId = verifySession(req.cookies?.dn_session)
+  if (!userId) return res.json({ user: null })
+  try {
+    const { rows } = await dbQuery(
+      'SELECT id, email, name, avatar_url, access, preferences, monthly_limit, credit_policy FROM users WHERE id = $1',
+      [userId]
+    )
+    res.json({ user: rows[0] || null })
+  } catch { res.json({ user: null }) }
+})
+
+// Middleware: load authenticated user from session cookie
+const requireUser = async (req, res, next) => {
+  const userId = verifySession(req.cookies?.dn_session)
+  if (!userId) return res.status(401).json({ error: 'Not authenticated' })
+  try {
+    const { rows } = await dbQuery(
+      'SELECT id, email, name, access, monthly_limit, credit_policy FROM users WHERE id = $1',
+      [userId]
+    )
+    if (!rows[0]) return res.status(401).json({ error: 'User not found' })
+    if (!rows[0].access?.digital_notes && !rows[0].access?.admin) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+    req.user = rows[0]
+    next()
+  } catch (err) {
+    console.error('requireUser:', err.message)
+    res.status(500).json({ error: 'Auth check failed' })
+  }
+}
 
 app.get('/api/health', (_, res) => res.json({ ok: true }))
 
@@ -160,11 +262,15 @@ Return ONLY valid JSON. 3-6 tags, lowercase, hyphenated if multi-word.\n\n${mark
   }
 }
 
-app.post('/api/process', requireAuth, upload.single('file'), async (req, res) => {
+app.post('/api/process', requireUser, creditsMiddleware, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file provided' })
 
   let { mimetype, buffer } = req.file
   const { originalname } = req.file
+  const scanId = randomUUID()
+
+  const userId = req.user?.id
+  let inputGcsPath = null
 
   try {
     // Convert HEIC/HEIF → JPEG (Claude doesn't support HEIC natively)
@@ -172,6 +278,18 @@ app.post('/api/process', requireAuth, upload.single('file'), async (req, res) =>
       const converted = await heicConvert({ buffer, format: 'JPEG', quality: 0.92 })
       buffer = Buffer.from(converted)
       mimetype = 'image/jpeg'
+    }
+
+    // Upload input file to GCS (best-effort — don't block processing on failure)
+    if (userId) {
+      try {
+        const ext = originalname.split('.').pop() || 'bin'
+        inputGcsPath = `dn/${userId}/${scanId}/input.${ext}`
+        await uploadBuffer(inputGcsPath, buffer, mimetype)
+      } catch (gcsErr) {
+        console.warn('GCS input upload failed (continuing):', gcsErr.message)
+        inputGcsPath = null
+      }
     }
 
     let content
@@ -222,6 +340,42 @@ app.post('/api/process', requireAuth, upload.single('file'), async (req, res) =>
 
     const { frontmatter, filename } = await generateMeta(accumulated)
     const markdown = frontmatter + '\n' + accumulated
+
+    // Upload output to GCS + record scan in DB (best-effort)
+    if (userId) {
+      const outputGcsPath = `dn/${userId}/${scanId}/output.md`
+      try {
+        await uploadBuffer(outputGcsPath, Buffer.from(markdown), 'text/markdown')
+      } catch (gcsErr) {
+        console.warn('GCS output upload failed:', gcsErr.message)
+      }
+      try {
+        // Extract token counts from the final stream message
+        const finalMsg = await stream.finalMessage().catch(() => null)
+        const inputTokens  = finalMsg?.usage?.input_tokens  ?? null
+        const outputTokens = finalMsg?.usage?.output_tokens ?? null
+        // Rough cost estimate for claude-opus-4-7 (update if pricing changes)
+        const costUsd = inputTokens && outputTokens
+          ? (inputTokens * 0.000015 + outputTokens * 0.000075)
+          : null
+
+        await dbQuery(`
+          INSERT INTO digital_notes_scans
+            (id, user_id, cost_usd, input_tokens, output_tokens,
+             input_gcs_path, output_gcs_path, file_metadata, output_metadata)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        `, [
+          scanId, userId, costUsd, inputTokens, outputTokens,
+          inputGcsPath || `dn/${userId}/${scanId}/input.bin`,
+          `dn/${userId}/${scanId}/output.md`,
+          JSON.stringify({ filename: originalname, size: req.file.size, mime: req.file.mimetype }),
+          JSON.stringify({ filename }),
+        ])
+      } catch (dbErr) {
+        console.warn('DB scan record failed:', dbErr.message)
+      }
+    }
+
     res.write(`data: ${JSON.stringify({ done: true, filename, markdown })}\n\n`)
     res.end()
   } catch (err) {
