@@ -13,16 +13,47 @@ RESET  := \033[0m
 # ── Help ─────────────────────────────────────────────────────────
 help:
 	@printf "\n$(BOLD)$(CYAN)Digital Notes$(RESET) — make commands\n\n"
-	@printf "  $(GREEN)make dev$(RESET)          Start dev server (Vite + Express)\n"
-	@printf "  $(GREEN)make build$(RESET)        Production build\n"
-	@printf "  $(GREEN)make lint$(RESET)         Run ESLint\n"
-	@printf "  $(GREEN)make commit$(RESET)       Interactive commit + optional push\n"
-	@printf "  $(GREEN)make push$(RESET)         Push current branch to origin\n"
-	@printf "  $(GREEN)make merge$(RESET)        Merge feature → develop → main\n"
-	@printf "  $(GREEN)make secrets$(RESET)      View / edit .env (secrets masked)\n"
-	@printf "  $(GREEN)make gcp-switch$(RESET)   Switch GCP account / project\n"
-	@printf "  $(GREEN)make gcp-secrets$(RESET)  Push .env secrets to GCP Secret Manager\n"
-	@printf "  $(GREEN)make docker$(RESET)       Build & run Docker image locally\n\n"
+	@printf "  $(GREEN)make dev$(RESET)            Start dev server (Vite + Express)\n"
+	@printf "  $(GREEN)make build$(RESET)          Production build\n"
+	@printf "  $(GREEN)make lint$(RESET)           Run ESLint\n"
+	@printf "  $(GREEN)make local-up$(RESET)       Start local stack (Postgres + GCS emulator)\n"
+	@printf "  $(GREEN)make local-down$(RESET)     Stop local stack\n"
+	@printf "  $(GREEN)make local-reset$(RESET)    Wipe local stack and restart fresh\n"
+	@printf "  $(GREEN)make db-shell$(RESET)       Open psql in the local Postgres container\n"
+	@printf "  $(GREEN)make db-promote$(RESET)     Grant admin access to a user (EMAIL=...)\n"
+	@printf "  $(GREEN)make commit$(RESET)         Interactive commit + optional push\n"
+	@printf "  $(GREEN)make push$(RESET)           Push current branch to origin\n"
+	@printf "  $(GREEN)make merge$(RESET)          Merge feature → develop → main\n"
+	@printf "  $(GREEN)make secrets$(RESET)        View / edit .env (secrets masked)\n"
+	@printf "  $(GREEN)make gcp-secrets$(RESET)    Push .env secrets to GCP Secret Manager\n"
+	@printf "  $(GREEN)make docker$(RESET)         Build & run Docker image locally\n\n"
+
+# ── Local dev stack ──────────────────────────────────────────────────
+local-up:
+	@printf "$(CYAN)Starting local stack...$(RESET)\n"
+	@cd local-dev && docker compose up -d
+	@printf "$(GREEN)✓ PostgreSQL$(RESET)  postgresql://admin:dev_password@localhost:5432/digital_notes\n"
+	@printf "$(GREEN)✓ GCS emulator$(RESET) http://localhost:4443\n"
+	@printf "$(DIM)Run 'make dev' to start the app server$(RESET)\n\n"
+
+local-down:
+	cd local-dev && docker compose down
+
+local-reset:
+	@read -p "This wipes all local data. Continue? [y/N] " c; \
+	[ "$$c" = "y" ] || [ "$$c" = "Y" ] || exit 0; \
+	cd local-dev && docker compose down -v && docker compose up -d && \
+	printf "$(GREEN)✓ Local stack reset$(RESET)\n"
+
+db-shell:
+	@docker exec -it $$(docker compose -f local-dev/docker-compose.yml ps -q postgres 2>/dev/null) \
+		psql -U admin -d digital_notes
+
+db-promote:
+	@if [ -z "$(EMAIL)" ]; then printf "$(RED)Usage: make db-promote EMAIL=you@example.com$(RESET)\n"; exit 1; fi
+	@docker exec -i $$(docker compose -f local-dev/docker-compose.yml ps -q postgres 2>/dev/null) \
+		psql -U admin -d digital_notes -c \
+		"UPDATE users SET access = access || '{\"admin\":true,\"digital_notes\":true}'::jsonb WHERE email = '$(EMAIL)'; SELECT email, access FROM users WHERE email = '$(EMAIL)';"
 
 # ── Dev ──────────────────────────────────────────────────────────
 dev:
@@ -129,48 +160,6 @@ merge:
 	git checkout "$$branch"; \
 	git pull origin "$$branch" 2>/dev/null || true; \
 	printf "$(GREEN)✓ Done — $$branch → develop → main all merged and pushed.$(RESET)\n\n"
-
-# ── Secrets / .env ───────────────────────────────────────────────
-# ── GCP Account / Project switch ─────────────────────────────────
-gcp-switch:
-	@command -v gcloud >/dev/null 2>&1 || { printf "$(RED)gcloud CLI not found.$(RESET)\n\n"; exit 1; }; \
-	printf "\n$(BOLD)$(CYAN)GCP — current context$(RESET)\n\n"; \
-	cur_acct=$$(gcloud config get-value account 2>/dev/null); \
-	cur_proj=$$(gcloud config get-value project 2>/dev/null); \
-	printf "  Account : $(CYAN)$$cur_acct$(RESET)\n"; \
-	printf "  Project : $(CYAN)$$cur_proj$(RESET)\n\n"; \
-	\
-	printf "$(DIM)Accounts:$(RESET)\n"; \
-	accounts=$$(gcloud auth list --format="value(account)" 2>/dev/null); \
-	i=1; for a in $$accounts; do printf "  $(DIM)%2d$(RESET)  $$a\n" $$i; i=$$((i+1)); done; \
-	printf "\n"; \
-	read -p "Select account number (Enter to keep current): " sel; \
-	if [ -n "$$sel" ]; then \
-		new_acct=$$(echo "$$accounts" | sed -n "$${sel}p"); \
-		if [ -z "$$new_acct" ]; then \
-			printf "$(RED)Invalid selection.$(RESET)\n\n"; exit 1; \
-		fi; \
-		gcloud config set account "$$new_acct" && \
-		printf "$(GREEN)✓ Account → $$new_acct$(RESET)\n\n"; \
-	fi; \
-	\
-	printf "$(DIM)Projects for $$(gcloud config get-value account 2>/dev/null):$(RESET)\n"; \
-	projects=$$(gcloud projects list --format="value(projectId)" 2>/dev/null); \
-	i=1; for p in $$projects; do printf "  $(DIM)%2d$(RESET)  $$p\n" $$i; i=$$((i+1)); done; \
-	printf "\n"; \
-	read -p "Select project number (Enter to keep current): " sel; \
-	if [ -n "$$sel" ]; then \
-		new_proj=$$(echo "$$projects" | sed -n "$${sel}p"); \
-		if [ -z "$$new_proj" ]; then \
-			printf "$(RED)Invalid selection.$(RESET)\n\n"; exit 1; \
-		fi; \
-		gcloud config set project "$$new_proj" && \
-		printf "$(GREEN)✓ Project → $$new_proj$(RESET)\n"; \
-	fi; \
-	\
-	printf "\n$(BOLD)Active context:$(RESET)\n"; \
-	printf "  Account : $(CYAN)$$(gcloud config get-value account 2>/dev/null)$(RESET)\n"; \
-	printf "  Project : $(CYAN)$$(gcloud config get-value project 2>/dev/null)$(RESET)\n\n"
 
 # ── GCP Secret Manager ───────────────────────────────────────────
 # Reads sensitive keys from .env and creates/updates them in Secret Manager.
