@@ -1,0 +1,60 @@
+name: digital-notes-local
+
+services:
+
+  # ── PostgreSQL 16 ──────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       digital_notes
+      POSTGRES_USER:     admin
+      POSTGRES_PASSWORD: dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Schema is managed by node-pg-migrate in architecture/migrations/
+      # Run `make db-migrate` after `make local-up` to apply the schema.
+      - ./seed.sql:/docker-entrypoint-initdb.d/01_seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d digital_notes"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── GCS emulator (fake-gcs-server) ────────────────────────────
+  # Speaks the real GCS JSON API — same client library, zero code changes.
+  gcs:
+    image: fsouza/fake-gcs-server:latest
+    restart: unless-stopped
+    ports:
+      - "4443:4443"
+    command:
+      - -scheme=http
+      - -port=4443
+      - -backend=filesystem
+      - -filesystem-root=/data
+      - -public-host=localhost:4443
+    volumes:
+      - gcs_data:/data
+    # Pre-create the bucket on startup
+    entrypoint: >
+      sh -c "
+        /bin/fake-gcs-server -scheme http -port 4443 -backend filesystem
+        -filesystem-root /data -public-host localhost:4443 &
+        sleep 2 &&
+        curl -s -X POST http://localhost:4443/storage/v1/b
+          -H 'Content-Type: application/json'
+          -d '{\"name\":\"digital-notes-local\"}' > /dev/null &&
+        wait
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4443/storage/v1/b"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+  gcs_data:

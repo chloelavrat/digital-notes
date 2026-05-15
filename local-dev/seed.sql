@@ -1,0 +1,12 @@
+-- ── Seed: run after schema.sql ─────────────────────────────────────
+-- This file is intentionally minimal.
+-- To promote a user to admin after their first Google sign-in:
+--
+--   UPDATE users
+--   SET access = jsonb_set(access, '{admin}', 'true')
+--       || jsonb_set(access, '{digital_notes}', 'true')
+--   WHERE email = 'your@email.com';
+--
+-- Or use: make db-promote EMAIL=your@email.com
+
+-- Nothing to seed by default — users are created on first Google sign-in.
